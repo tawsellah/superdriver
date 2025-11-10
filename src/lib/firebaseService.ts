@@ -985,7 +985,4 @@ export const getDriverWhatsAppNumber = async (): Promise<string | null> => {
   return null;
 };
 
-
-
-
     

@@ -19,6 +19,10 @@ import { cn } from '@/lib/utils';
 import { createDriverAccount, type UserProfile, doesPhoneOrEmailExist } from '@/lib/firebaseService';
 import { Progress } from '@/components/ui/progress';
 
+const fileValidation = z.any()
+  .refine((files) => files?.length == 1, 'الصورة مطلوبة.')
+  .refine((files) => files?.[0]?.size <= 5000000, `الحد الأقصى لحجم الملف 5 ميغابايت.`);
+
 const signUpSchema = z.object({
   fullName: z.string().min(3, { message: "الاسم الكامل مطلوب." }),
   phone: z.string().regex(/^07[789]\d{7}$/, { message: "رقم هاتف أردني غير صالح (مثال: 0791234567)." }),
@@ -27,17 +31,17 @@ const signUpSchema = z.object({
   password: z.string().min(6, { message: "كلمة المرور يجب أن تكون 6 أحرف على الأقل." }),
   
   idNumber: z.string().regex(/^\d{10}$/, { message: "الرقم الوطني يجب أن يتكون من 10 أرقام." }),
-  idPhoto: z.any().optional(),
+  idPhoto: fileValidation,
   licenseNumber: z.string().regex(/^\d{8}$/, { message: "رقم الرخضة يجب ان يتكون من 8 ارقام" }),
   licenseExpiry: z.string().min(1, { message: "تاريخ انتهاء الرخصة مطلوب." }),
-  licensePhoto: z.any().optional(),
+  licensePhoto: fileValidation,
 
   vehicleType: z.string().min(1, { message: "نوع المركبة مطلوب." }),
   otherVehicleType: z.string().optional(),
   year: z.string().min(4, { message: "سنة الصنع مطلوبة (مثال: 2020)." }).max(4),
   color: z.string().min(1, { message: "لون المركبة مطلوب." }),
   plateNumber: z.string().min(1, { message: "رقم اللوحة مطلوب." }),
-  vehiclePhoto: z.any().optional(),
+  vehiclePhoto: fileValidation,
 }).refine(data => {
     if (data.vehicleType === 'other') {
         return !!data.otherVehicleType && data.otherVehicleType.length > 0;
@@ -152,6 +156,13 @@ export default function SignUpPage() {
             uploadFileToImageKit(data.vehiclePhoto?.[0]),
         ]);
 
+        if (!idPhotoUrl || !licensePhotoUrl || !vehiclePhotoUrl) {
+            toast({ title: "خطأ في رفع الصور", description: "فشل رفع إحدى الصور المطلوبة. يرجى المحاولة مرة أخرى.", variant: "destructive" });
+            setIsLoading(false);
+            return;
+        }
+
+
         const profileData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt' | 'status'> = {
             fullName: data.fullName,
             phone: data.phone,
@@ -260,8 +271,8 @@ export default function SignUpPage() {
                   {errors.licenseExpiry && <p className="mt-1 text-sm text-destructive">{errors.licenseExpiry.message}</p>}
                 </div>
                 <div></div>
-                 <FileInput label="الصورة الشخصية" id="idPhoto" error={errors.idPhoto?.message as string} register={register} fieldName="idPhoto" isRequired={false} accept="image/*" />
-                <FileInput label="صورة الرخصة" id="licensePhoto" error={errors.licensePhoto?.message as string} register={register} fieldName="licensePhoto" isRequired={false} accept="image/*"/>
+                 <FileInput label="الصورة الشخصية" id="idPhoto" error={errors.idPhoto?.message as string} register={register} fieldName="idPhoto" isRequired={true} accept="image/*" />
+                <FileInput label="صورة الرخصة" id="licensePhoto" error={errors.licensePhoto?.message as string} register={register} fieldName="licensePhoto" isRequired={true} accept="image/*"/>
             </div>
         )}
 
@@ -312,7 +323,7 @@ export default function SignUpPage() {
                   <IconInput icon={Hash} id="plateNumber" {...register('plateNumber')} error={errors.plateNumber?.message} />
                   {errors.plateNumber && <p className="mt-1 text-sm text-destructive">{errors.plateNumber.message}</p>}
                 </div>
-                <FileInput label="صورة المركبة" id="vehiclePhoto" error={errors.vehiclePhoto?.message as string} register={register} fieldName="vehiclePhoto" isRequired={false} accept="image/*" />
+                <FileInput label="صورة المركبة" id="vehiclePhoto" error={errors.vehiclePhoto?.message as string} register={register} fieldName="vehiclePhoto" isRequired={true} accept="image/*" />
             </div>
         )}
 

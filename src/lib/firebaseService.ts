@@ -59,16 +59,16 @@ export interface UserProfile {
   phone: string; 
   secondaryPhone?: string;
   idNumber?: string;
-  idPhotoUrl?: string | null; 
+  idPhotoUrl: string; 
   licenseNumber?: string;
   licenseExpiry?: string;
-  licensePhotoUrl?: string | null;
+  licensePhotoUrl: string;
   vehicleType?: string;
   otherVehicleType?: string | null;
   vehicleYear?: string;
   vehicleColor?: string;
   vehiclePlateNumber?: string;
-  vehiclePhotosUrl?: string | null;
+  vehiclePhotosUrl: string;
   paymentMethods?: {
     click?: boolean;
     cash?: boolean;
@@ -354,16 +354,16 @@ export const addDriverToWaitingList = async (
         email: 'placeholder@email.com', // Placeholder email, main registration should handle this
         secondaryPhone: profileData.secondaryPhone || '',
         idNumber: profileData.idNumber,
-        idPhotoUrl: profileData.idPhotoUrl,
+        idPhotoUrl: profileData.idPhotoUrl || '',
         licenseNumber: profileData.licenseNumber,
         licenseExpiry: profileData.licenseExpiry,
-        licensePhotoUrl: profileData.licensePhotoUrl,
+        licensePhotoUrl: profileData.licensePhotoUrl || '',
         vehicleType: profileData.vehicleType,
         otherVehicleType: null,
         vehicleYear: profileData.vehicleYear,
         vehicleColor: profileData.vehicleColor,
         vehiclePlateNumber: profileData.vehiclePlateNumber,
-        vehiclePhotosUrl: profileData.vehiclePhotosUrl,
+        vehiclePhotosUrl: profileData.vehiclePhotosUrl || '',
         paymentMethods: { cash: true, click: false, clickCode: '' },
         rating: 5,
         tripsCount: 0,
@@ -976,4 +976,5 @@ export const getDriverWhatsAppNumber = async (): Promise<string | null> => {
   }
   return null;
 };
+
 

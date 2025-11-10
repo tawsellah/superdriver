@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { auth as authInternal , database as databaseInternal } from './firebase'; 
@@ -64,14 +63,12 @@ export interface UserProfile {
   licenseNumber?: string;
   licenseExpiry?: string;
   licensePhotoUrl?: string | null;
-  introVideoUrl?: string | null;
   vehicleType?: string;
   otherVehicleType?: string | null;
   vehicleYear?: string;
   vehicleColor?: string;
   vehiclePlateNumber?: string;
   vehiclePhotosUrl?: string | null;
-  vehicleVideoUrl?: string | null;
   paymentMethods?: {
     click?: boolean;
     cash?: boolean;
@@ -980,4 +977,3 @@ export const getDriverWhatsAppNumber = async (): Promise<string | null> => {
   return null;
 };
 
-    

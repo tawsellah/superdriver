@@ -31,7 +31,6 @@ const signUpSchema = z.object({
   licenseNumber: z.string().regex(/^\d{8}$/, { message: "رقم الرخضة يجب ان يتكون من 8 ارقام" }),
   licenseExpiry: z.string().min(1, { message: "تاريخ انتهاء الرخصة مطلوب." }),
   licensePhoto: z.any().optional(),
-  introVideo: z.any().optional(),
 
   vehicleType: z.string().min(1, { message: "نوع المركبة مطلوب." }),
   otherVehicleType: z.string().optional(),
@@ -39,7 +38,6 @@ const signUpSchema = z.object({
   color: z.string().min(1, { message: "لون المركبة مطلوب." }),
   plateNumber: z.string().min(1, { message: "رقم اللوحة مطلوب." }),
   vehiclePhoto: z.any().optional(),
-  vehicleVideo: z.any().optional(),
 }).refine(data => {
     if (data.vehicleType === 'other') {
         return !!data.otherVehicleType && data.otherVehicleType.length > 0;
@@ -54,8 +52,8 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 
 const steps: { title: string; fields: FieldName<SignUpFormValues>[] }[] = [
     { title: 'البيانات الأساسية', fields: ['fullName', 'phone', 'secondaryPhone', 'email', 'password'] },
-    { title: 'معلومات السائق', fields: ['idPhoto', 'idNumber', 'licenseNumber', 'licenseExpiry', 'licensePhoto', 'introVideo'] },
-    { title: 'بيانات المركبة', fields: ['vehicleType', 'otherVehicleType', 'year', 'color', 'plateNumber', 'vehiclePhoto', 'vehicleVideo'] }
+    { title: 'معلومات السائق', fields: ['idPhoto', 'idNumber', 'licenseNumber', 'licenseExpiry', 'licensePhoto'] },
+    { title: 'بيانات المركبة', fields: ['vehicleType', 'otherVehicleType', 'year', 'color', 'plateNumber', 'vehiclePhoto'] }
 ];
 
 async function uploadFileToImageKit(file: File | undefined | null): Promise<string | null> {
@@ -148,12 +146,10 @@ export default function SignUpPage() {
             return;
         }
 
-        const [idPhotoUrl, licensePhotoUrl, vehiclePhotoUrl, introVideoUrl, vehicleVideoUrl] = await Promise.all([
+        const [idPhotoUrl, licensePhotoUrl, vehiclePhotoUrl] = await Promise.all([
             uploadFileToImageKit(data.idPhoto?.[0]),
             uploadFileToImageKit(data.licensePhoto?.[0]),
             uploadFileToImageKit(data.vehiclePhoto?.[0]),
-            uploadFileToImageKit(data.introVideo?.[0]),
-            uploadFileToImageKit(data.vehicleVideo?.[0]),
         ]);
 
         const profileData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt' | 'status'> = {
@@ -166,14 +162,12 @@ export default function SignUpPage() {
             licenseNumber: data.licenseNumber,
             licenseExpiry: data.licenseExpiry,
             licensePhotoUrl: licensePhotoUrl,
-            introVideoUrl: introVideoUrl,
             vehicleType: data.vehicleType,
             otherVehicleType: data.otherVehicleType,
             vehicleYear: data.year,
             vehicleColor: data.color,
             vehiclePlateNumber: data.plateNumber,
             vehiclePhotosUrl: vehiclePhotoUrl,
-            vehicleVideoUrl: vehicleVideoUrl,
             paymentMethods: { cash: true, click: false, clickCode: '' },
             rating: 5,
             tripsCount: 0,
@@ -268,9 +262,6 @@ export default function SignUpPage() {
                 <div></div>
                  <FileInput label="الصورة الشخصية" id="idPhoto" error={errors.idPhoto?.message as string} register={register} fieldName="idPhoto" isRequired={false} accept="image/*" />
                 <FileInput label="صورة الرخصة" id="licensePhoto" error={errors.licensePhoto?.message as string} register={register} fieldName="licensePhoto" isRequired={false} accept="image/*"/>
-                <div className="md:col-span-2">
-                    <FileInput label="فيديو تعريفي" id="introVideo" error={errors.introVideo?.message as string} register={register} fieldName="introVideo" isRequired={false} accept="video/*"/>
-                </div>
             </div>
         )}
 
@@ -322,7 +313,6 @@ export default function SignUpPage() {
                   {errors.plateNumber && <p className="mt-1 text-sm text-destructive">{errors.plateNumber.message}</p>}
                 </div>
                 <FileInput label="صورة المركبة" id="vehiclePhoto" error={errors.vehiclePhoto?.message as string} register={register} fieldName="vehiclePhoto" isRequired={false} accept="image/*" />
-                 <FileInput label="فيديو للمركبة" id="vehicleVideo" error={errors.vehicleVideo?.message as string} register={register} fieldName="vehicleVideo" isRequired={false} accept="video/*" />
             </div>
         )}
 
@@ -362,5 +352,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    

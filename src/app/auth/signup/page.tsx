@@ -115,7 +115,7 @@ const FileInput = ({
   <div className="space-y-1">
     <Label htmlFor={id}>{label} {isRequired && <span className="text-destructive">*</span>}</Label>
     <Input id={id} type="file" accept={accept} className={cn("pt-2", error ? 'border-destructive' : '')} {...register(fieldName)} disabled={disabled} />
-    {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+    {error && <p className="mt-1 text-sm text-destructive">{error as string}</p>}
   </div>
 );
 
@@ -195,7 +195,7 @@ export default function SignUpPage() {
     } catch (error: any) {
         console.error("Signup Error:", error);
         let errorMessage = "حدث خطأ أثناء إنشاء الحساب. الرجاء المحاولة مرة أخرى.";
-        if (error?.message?.includes("EMAIL_EXISTS") || error?.code === 'auth/email-already-in-use') {
+        if (error?.code === 'auth/email-already-in-use') {
             errorMessage = "هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو تسجيل الدخول.";
         } else if(error?.message?.includes("File is missing for upload")) {
              errorMessage = "فشل رفع إحدى الصور المطلوبة. يرجى التأكد من رفع جميع الصور.";
@@ -224,7 +224,7 @@ export default function SignUpPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         
-        {currentStep === 0 && (
+        <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-1">
                   <Label htmlFor="fullName">الاسم الكامل <span className="text-destructive">*</span></Label>
@@ -252,9 +252,9 @@ export default function SignUpPage() {
                   {errors.password && <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>}
               </div>
             </div>
-        )}
+        </div>
 
-        {currentStep === 1 && (
+        <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="space-y-1">
                   <Label htmlFor="idNumber">الرقم الوطني <span className="text-destructive">*</span></Label>
@@ -275,9 +275,9 @@ export default function SignUpPage() {
                  <FileInput label="الصورة الشخصية" id="idPhoto" error={errors.idPhoto?.message as string} register={register} fieldName="idPhoto" isRequired={true} accept="image/*" />
                 <FileInput label="صورة الرخصة" id="licensePhoto" error={errors.licensePhoto?.message as string} register={register} fieldName="licensePhoto" isRequired={true} accept="image/*"/>
             </div>
-        )}
+        </div>
 
-        {currentStep === 2 && (
+        <div style={{ display: currentStep === 2 ? 'block' : 'none' }}>
              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                  <div className="space-y-1">
                   <Label htmlFor="vehicleType">نوع المركبة <span className="text-destructive">*</span></Label>
@@ -353,7 +353,7 @@ export default function SignUpPage() {
                 </div>
 
             </div>
-        )}
+        </div>
 
 
         <div className="mt-8 flex justify-between items-center gap-2">

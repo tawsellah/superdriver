@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, ArrowLeft, User, Phone, Lock, CreditCard, Car, ImageIcon, CalendarDays, Palette, Hash, Loader2 } from 'lucide-react';
+import { UserPlus, ArrowLeft, User, Phone, Lock, CreditCard, Car, ImageIcon, CalendarDays, Palette, Hash, Loader2, Mail } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IconInput } from '@/components/shared/icon-input';
 import { VEHICLE_TYPES } from '@/lib/constants';
@@ -395,5 +395,3 @@ export default function SignUpPage() {
     </div>
   );
 }
-
-    

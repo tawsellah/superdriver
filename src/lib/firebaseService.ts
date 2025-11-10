@@ -100,15 +100,15 @@ export interface WaitingListDriverProfile {
   secondaryPhone?: string;
   password?: string;
   idNumber?: string;
-  idPhotoUrl?: string | null;
+  idPhotoUrl: string;
   licenseNumber?: string;
   licenseExpiry?: string;
-  licensePhotoUrl?: string | null;
+  licensePhotoUrl: string;
   vehicleType?: string;
   vehicleYear?: string;
   vehicleColor?: string;
   vehiclePlateNumber?: string;
-  vehiclePhotosUrl?: string | null;
+  vehiclePhotosUrl: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: any;
 }
@@ -354,16 +354,16 @@ export const addDriverToWaitingList = async (
         email: 'placeholder@email.com', // Placeholder email, main registration should handle this
         secondaryPhone: profileData.secondaryPhone || '',
         idNumber: profileData.idNumber,
-        idPhotoUrl: profileData.idPhotoUrl || '',
+        idPhotoUrl: profileData.idPhotoUrl,
         licenseNumber: profileData.licenseNumber,
         licenseExpiry: profileData.licenseExpiry,
-        licensePhotoUrl: profileData.licensePhotoUrl || '',
+        licensePhotoUrl: profileData.licensePhotoUrl,
         vehicleType: profileData.vehicleType,
         otherVehicleType: null,
         vehicleYear: profileData.vehicleYear,
         vehicleColor: profileData.vehicleColor,
         vehiclePlateNumber: profileData.vehiclePlateNumber,
-        vehiclePhotosUrl: profileData.vehiclePhotosUrl || '',
+        vehiclePhotosUrl: profileData.vehiclePhotosUrl,
         paymentMethods: { cash: true, click: false, clickCode: '' },
         rating: 5,
         tripsCount: 0,
@@ -633,22 +633,20 @@ const refundForUnbookedSeats = async (trip: Trip, reason: 'cancelled' | 'complet
 
   const driverId = trip.driverId;
   const tripId = trip.id;
-  const transactionsRef = ref(walletDatabaseInternal, `walletTransactions/${driverId}`);
-  const txSnapshot = await get(transactionsRef);
-
-  if (!txSnapshot.exists()) {
-    console.warn(`No wallet transactions found for driver ${driverId} to process refund.`);
-    return;
-  }
-
-  const transactions = txSnapshot.val();
-  let originalCommission = 0;
   
-  // Client-side search for the original commission fee transaction for this trip
-  for (const txId in transactions) {
-    if (transactions[txId].tripId === tripId && transactions[txId].type === 'trip_fee') {
-      originalCommission = Math.abs(transactions[txId].amount);
-      break;
+  // 1. Fetch the original commission fee for the trip
+  const transactionsRef = ref(walletDatabaseInternal, `walletTransactions/${driverId}`);
+  const q = query(transactionsRef, orderByChild('tripId'), equalTo(tripId));
+  const txSnapshot = await get(q);
+
+  let originalCommission = 0;
+  if (txSnapshot.exists()) {
+    const transactions = txSnapshot.val();
+    for (const txId in transactions) {
+        if (transactions[txId].type === 'trip_fee') {
+            originalCommission = Math.abs(transactions[txId].amount);
+            break;
+        }
     }
   }
 
@@ -657,6 +655,7 @@ const refundForUnbookedSeats = async (trip: Trip, reason: 'cancelled' | 'complet
     return;
   }
 
+  // 2. Calculate refund amount
   const offeredSeats = Object.values(trip.offeredSeatsConfig).filter(v => v === true || typeof v === 'object');
   const totalOfferedSeats = offeredSeats.length;
   const unbookedSeats = offeredSeats.filter(v => v === true).length;
@@ -666,13 +665,13 @@ const refundForUnbookedSeats = async (trip: Trip, reason: 'cancelled' | 'complet
     return;
   }
 
-  // Calculate the refund amount based on the number of unbooked seats
   const refundAmount = (originalCommission / totalOfferedSeats) * unbookedSeats;
   
   if (refundAmount <= 0) {
     return;
   }
 
+  // 3. Process the refund transaction
   const walletRef = ref(walletDatabaseInternal, `wallets/${driverId}`);
   const walletTxResult = await runTransaction(walletRef, (wallet) => {
     if (wallet) {
@@ -682,6 +681,7 @@ const refundForUnbookedSeats = async (trip: Trip, reason: 'cancelled' | 'complet
     return wallet;
   });
 
+  // 4. Log the refund transaction
   if (walletTxResult.committed) {
     const newBalance = walletTxResult.snapshot.val().walletBalance;
     await addWalletTransaction(driverId, {
@@ -706,13 +706,15 @@ export const deleteTrip = async (tripId: string): Promise<void> => {
   if (snapshot.exists()) {
       const trip = snapshot.val() as Trip;
 
-      if (trip.status !== 'upcoming' && trip.status !== 'cancelled') {
+      if (trip.status !== 'upcoming') {
           throw new Error("لا يمكن إلغاء رحلة جارية أو مكتملة. يجب إنهاؤها.");
       }
 
       // Check if cancellation is within 5 minutes for refund
       const now = Date.now();
-      const createdAt = typeof trip.createdAt === 'number' ? trip.createdAt : (trip.createdAt?.seconds * 1000 || now);
+      const createdAt = typeof trip.createdAt === 'object' && trip.createdAt?.seconds 
+          ? trip.createdAt.seconds * 1000 
+          : (typeof trip.createdAt === 'number' ? trip.createdAt : now);
       const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
       if (now - createdAt < FIVE_MINUTES_IN_MS) {
@@ -726,6 +728,12 @@ export const deleteTrip = async (tripId: string): Promise<void> => {
 
   } else {
       console.warn(`Trip with ID ${tripId} not found in currentTrips for deletion.`);
+      // Check if it was already moved but failed to be deleted before
+      const finishedTripRef = ref(tripsDatabaseInternal, `${FINISHED_TRIPS_PATH}/${tripId}`);
+      const finishedSnapshot = await get(finishedTripRef);
+      if(!finishedSnapshot.exists()){
+           throw new Error(`لم يتم العثور على الرحلة بالمعرف ${tripId}`);
+      }
   }
 };
 
@@ -978,3 +986,6 @@ export const getDriverWhatsAppNumber = async (): Promise<string | null> => {
 };
 
 
+
+
+    

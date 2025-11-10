@@ -11,13 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, ArrowLeft, User, Phone, Lock, CreditCard, Car, ImageIcon, CalendarDays, Palette, Hash, Loader2, Mail, Video } from 'lucide-react';
+import { UserPlus, ArrowLeft, User, Phone, Lock, CreditCard, Car, ImageIcon, CalendarDays, Palette, Hash, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IconInput } from '@/components/shared/icon-input';
 import { VEHICLE_TYPES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { createDriverAccount, type UserProfile, doesPhoneOrEmailExist } from '@/lib/firebaseService';
 import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 const fileValidation = z.any()
   .refine((files) => files?.length == 1, 'الصورة مطلوبة.')
@@ -42,6 +44,9 @@ const signUpSchema = z.object({
   color: z.string().min(1, { message: "لون المركبة مطلوب." }),
   plateNumber: z.string().min(1, { message: "رقم اللوحة مطلوب." }),
   vehiclePhoto: fileValidation,
+  termsAccepted: z.boolean().refine(val => val === true, {
+    message: "يجب الموافقة على الشروط والأحكام للمتابعة.",
+  }),
 }).refine(data => {
     if (data.vehicleType === 'other') {
         return !!data.otherVehicleType && data.otherVehicleType.length > 0;
@@ -57,11 +62,11 @@ type SignUpFormValues = z.infer<typeof signUpSchema>;
 const steps: { title: string; fields: FieldName<SignUpFormValues>[] }[] = [
     { title: 'البيانات الأساسية', fields: ['fullName', 'phone', 'secondaryPhone', 'email', 'password'] },
     { title: 'معلومات السائق', fields: ['idPhoto', 'idNumber', 'licenseNumber', 'licenseExpiry', 'licensePhoto'] },
-    { title: 'بيانات المركبة', fields: ['vehicleType', 'otherVehicleType', 'year', 'color', 'plateNumber', 'vehiclePhoto'] }
+    { title: 'بيانات المركبة', fields: ['vehicleType', 'otherVehicleType', 'year', 'color', 'plateNumber', 'vehiclePhoto', 'termsAccepted'] }
 ];
 
-async function uploadFileToImageKit(file: File | undefined | null): Promise<string | null> {
-  if (!file) return null;
+async function uploadFileToImageKit(file: File | undefined | null): Promise<string> {
+  if (!file) throw new Error("File is missing for upload");
   try {
     const authResponse = await fetch('/api/imagekit-auth');
     if (!authResponse.ok) {
@@ -89,10 +94,11 @@ async function uploadFileToImageKit(file: File | undefined | null): Promise<stri
     }
 
     const uploadResult = await uploadResponse.json();
+    if(!uploadResult.url) throw new Error("ImageKit upload did not return a URL.");
     return uploadResult.url;
   } catch (error) {
     console.error('Error uploading to ImageKit:', error);
-    return null;
+    throw error;
   }
 }
 
@@ -156,13 +162,6 @@ export default function SignUpPage() {
             uploadFileToImageKit(data.vehiclePhoto?.[0]),
         ]);
 
-        if (!idPhotoUrl || !licensePhotoUrl || !vehiclePhotoUrl) {
-            toast({ title: "خطأ في رفع الصور", description: "فشل رفع إحدى الصور المطلوبة. يرجى المحاولة مرة أخرى.", variant: "destructive" });
-            setIsLoading(false);
-            return;
-        }
-
-
         const profileData: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt' | 'status'> = {
             fullName: data.fullName,
             phone: data.phone,
@@ -196,8 +195,10 @@ export default function SignUpPage() {
     } catch (error: any) {
         console.error("Signup Error:", error);
         let errorMessage = "حدث خطأ أثناء إنشاء الحساب. الرجاء المحاولة مرة أخرى.";
-        if (error.message === 'EMAIL_EXISTS' || (error.code && error.code === 'auth/email-already-in-use')) {
+        if (error?.message?.includes("EMAIL_EXISTS") || error?.code === 'auth/email-already-in-use') {
             errorMessage = "هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو تسجيل الدخول.";
+        } else if(error?.message?.includes("File is missing for upload")) {
+             errorMessage = "فشل رفع إحدى الصور المطلوبة. يرجى التأكد من رفع جميع الصور.";
         }
         toast({
             title: "خطأ في التسجيل",
@@ -227,27 +228,27 @@ export default function SignUpPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
               <div className="space-y-1">
                   <Label htmlFor="fullName">الاسم الكامل <span className="text-destructive">*</span></Label>
-                  <IconInput icon={User} id="fullName" {...register('fullName')} error={errors.fullName?.message} />
+                  <IconInput icon={User} id="fullName" {...register('fullName')} />
                   {errors.fullName && <p className="mt-1 text-sm text-destructive">{errors.fullName.message}</p>}
               </div>
               <div className="space-y-1">
                   <Label htmlFor="phone">رقم الهاتف <span className="text-destructive">*</span></Label>
-                  <IconInput icon={Phone} id="phone" type="tel" {...register('phone')} error={errors.phone?.message} />
+                  <IconInput icon={Phone} id="phone" type="tel" {...register('phone')} />
                   {errors.phone && <p className="mt-1 text-sm text-destructive">{errors.phone.message}</p>}
               </div>
                <div className="space-y-1">
                   <Label htmlFor="secondaryPhone">رقم هاتف إضافي (اختياري)</Label>
-                  <IconInput icon={Phone} id="secondaryPhone" type="tel" {...register('secondaryPhone')} error={errors.secondaryPhone?.message} />
+                  <IconInput icon={Phone} id="secondaryPhone" type="tel" {...register('secondaryPhone')} />
                   {errors.secondaryPhone && <p className="mt-1 text-sm text-destructive">{errors.secondaryPhone.message}</p>}
               </div>
               <div className="space-y-1">
                   <Label htmlFor="email">البريد الإلكتروني <span className="text-destructive">*</span></Label>
-                  <IconInput icon={Mail} id="email" type="email" {...register('email')} error={errors.email?.message} />
+                  <IconInput icon={Mail} id="email" type="email" {...register('email')} />
                   {errors.email && <p className="mt-1 text-sm text-destructive">{errors.email.message}</p>}
               </div>
               <div className="space-y-1 md:col-span-2">
                   <Label htmlFor="password">كلمة المرور <span className="text-destructive">*</span></Label>
-                  <IconInput icon={Lock} id="password" type="password" {...register('password')} error={errors.password?.message} />
+                  <IconInput icon={Lock} id="password" type="password" {...register('password')} />
                   {errors.password && <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>}
               </div>
             </div>
@@ -257,17 +258,17 @@ export default function SignUpPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="space-y-1">
                   <Label htmlFor="idNumber">الرقم الوطني <span className="text-destructive">*</span></Label>
-                  <IconInput icon={CreditCard} id="idNumber" {...register('idNumber')} error={errors.idNumber?.message} maxLength={10} />
+                  <IconInput icon={CreditCard} id="idNumber" {...register('idNumber')} maxLength={10} />
                   {errors.idNumber && <p className="mt-1 text-sm text-destructive">{errors.idNumber.message}</p>}
                 </div>
                  <div className="space-y-1">
                   <Label htmlFor="licenseNumber">رقم الرخصة <span className="text-destructive">*</span></Label>
-                  <IconInput icon={CreditCard} id="licenseNumber" {...register('licenseNumber')} error={errors.licenseNumber?.message} maxLength={8} />
+                  <IconInput icon={CreditCard} id="licenseNumber" {...register('licenseNumber')} maxLength={8} />
                   {errors.licenseNumber && <p className="mt-1 text-sm text-destructive">{errors.licenseNumber.message}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="licenseExpiry">تاريخ انتهاء الرخصة <span className="text-destructive">*</span></Label>
-                  <IconInput icon={CalendarDays} id="licenseExpiry" type="date" {...register('licenseExpiry')} error={errors.licenseExpiry?.message} />
+                  <IconInput icon={CalendarDays} id="licenseExpiry" type="date" {...register('licenseExpiry')} />
                   {errors.licenseExpiry && <p className="mt-1 text-sm text-destructive">{errors.licenseExpiry.message}</p>}
                 </div>
                 <div></div>
@@ -303,54 +304,85 @@ export default function SignUpPage() {
                 {watchedVehicleType === 'other' && (
                     <div className="space-y-1">
                         <Label htmlFor="otherVehicleType">الرجاء تحديد النوع <span className="text-destructive">*</span></Label>
-                        <IconInput icon={Car} id="otherVehicleType" {...register('otherVehicleType')} error={errors.otherVehicleType?.message} />
+                        <IconInput icon={Car} id="otherVehicleType" {...register('otherVehicleType')} />
                         {errors.otherVehicleType && <p className="mt-1 text-sm text-destructive">{errors.otherVehicleType.message}</p>}
                     </div>
                 )}
 
                 <div className="space-y-1">
                   <Label htmlFor="year">سنة الصنع <span className="text-destructive">*</span></Label>
-                  <IconInput icon={CalendarDays} id="year" type="number" placeholder="YYYY" {...register('year')} error={errors.year?.message} />
+                  <IconInput icon={CalendarDays} id="year" type="number" placeholder="YYYY" {...register('year')} />
                   {errors.year && <p className="mt-1 text-sm text-destructive">{errors.year.message}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="color">اللون <span className="text-destructive">*</span></Label>
-                  <IconInput icon={Palette} id="color" {...register('color')} error={errors.color?.message} />
+                  <IconInput icon={Palette} id="color" {...register('color')} />
                   {errors.color && <p className="mt-1 text-sm text-destructive">{errors.color.message}</p>}
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="plateNumber">رقم اللوحة <span className="text-destructive">*</span></Label>
-                  <IconInput icon={Hash} id="plateNumber" {...register('plateNumber')} error={errors.plateNumber?.message} />
+                  <IconInput icon={Hash} id="plateNumber" {...register('plateNumber')} />
                   {errors.plateNumber && <p className="mt-1 text-sm text-destructive">{errors.plateNumber.message}</p>}
                 </div>
                 <FileInput label="صورة المركبة" id="vehiclePhoto" error={errors.vehiclePhoto?.message as string} register={register} fieldName="vehiclePhoto" isRequired={true} accept="image/*" />
+                
+                <div className="md:col-span-2 flex items-center space-x-2 space-x-reverse pt-4">
+                  <Controller
+                    name="termsAccepted"
+                    control={control}
+                    render={({ field }) => (
+                      <Checkbox
+                        id="terms"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
+                  />
+                  <div className="grid gap-1.5 leading-none">
+                    <label
+                      htmlFor="terms"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      أوافق على{" "}
+                      <Link href="/terms" target="_blank" className="underline text-primary">
+                        الشروط والأحكام
+                      </Link>
+                    </label>
+                    {errors.termsAccepted && <p className="text-sm text-destructive">{errors.termsAccepted.message}</p>}
+                  </div>
+                </div>
+
             </div>
         )}
 
 
-        <div className="mt-8 flex justify-end gap-2">
-          {currentStep > 0 && (
-            <Button type="button" variant="outline" onClick={handlePrevStep} className="px-6">
-              السابق
-            </Button>
-          )}
-          {currentStep < steps.length - 1 && (
-            <Button type="button" onClick={handleNextStep} className="px-6">
-              التالي
-            </Button>
-          )}
-          {currentStep === steps.length - 1 && (
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <>
-                  <UserPlus className="ms-2 h-5 w-5" />
-                  إنهاء وتقديم الطلب
-                </>
-              )}
-            </Button>
-          )}
+        <div className="mt-8 flex justify-between items-center gap-2">
+          <div>
+            {currentStep > 0 && (
+                <Button type="button" variant="outline" onClick={handlePrevStep} className="px-6">
+                السابق
+                </Button>
+            )}
+          </div>
+          <div className="flex-grow text-left">
+            {currentStep < steps.length - 1 && (
+                <Button type="button" onClick={handleNextStep} className="px-6">
+                التالي
+                </Button>
+            )}
+            {currentStep === steps.length - 1 && (
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? (
+                    <Loader2 className="animate-spin" />
+                ) : (
+                    <>
+                    <UserPlus className="ms-2 h-5 w-5" />
+                    إنهاء وتقديم الطلب
+                    </>
+                )}
+                </Button>
+            )}
+           </div>
         </div>
 
       </form>
@@ -363,3 +395,5 @@ export default function SignUpPage() {
     </div>
   );
 }
+
+    
